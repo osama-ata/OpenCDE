@@ -1,19 +1,17 @@
-﻿using Dangl.OpenCDE.Shared.Configuration;
+using Dangl.OpenCDE.Shared.Configuration;
 using System;
 
 namespace Dangl.OpenCDE.Core.Configuration
 {
     public class OpenCdeSettings
     {
-        public DanglIdentitySettings DanglIdentitySettings { get; set; }
+        public SupabaseAuthSettings Supabase { get; set; }
 
         public StorageSettings StorageSettings { get; set; }
 
         public string ApplicationInsightsInstrumentationKey { get; set; }
 
         public string AppBaseUrl { get; set; }
-
-        public string DanglIconsBaseUrl { get; set; }
 
         public void Validate()
         {
@@ -28,23 +26,12 @@ namespace Dangl.OpenCDE.Core.Configuration
                 throw new InvalidConfigurationException($"{nameof(AppBaseUrl)} must be an absolute uri and use http or https");
             }
 
-            if (string.IsNullOrWhiteSpace(DanglIconsBaseUrl))
+            if (Supabase == null)
             {
-                throw new InvalidConfigurationException($"{nameof(DanglIconsBaseUrl)} missing.");
+                throw new InvalidConfigurationException($"{nameof(Supabase)} missing.");
             }
 
-            if (!DanglIconsBaseUrl.StartsWith("http://", StringComparison.InvariantCultureIgnoreCase)
-                && !DanglIconsBaseUrl.StartsWith("https://", StringComparison.InvariantCultureIgnoreCase))
-            {
-                throw new InvalidConfigurationException($"{nameof(DanglIconsBaseUrl)} must be an absolute uri and use http or https");
-            }
-
-            if (DanglIdentitySettings == null)
-            {
-                throw new InvalidConfigurationException($"{nameof(DanglIdentitySettings)} missing.");
-            }
-
-            DanglIdentitySettings?.Validate();
+            Supabase?.Validate();
             if (StorageSettings == null)
             {
                 throw new InvalidConfigurationException($"{nameof(StorageSettings)} missing.");

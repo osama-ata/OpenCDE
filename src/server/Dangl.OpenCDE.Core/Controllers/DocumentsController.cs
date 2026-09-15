@@ -1,6 +1,5 @@
 ﻿using AutoMapper;
 using AutoMapper.QueryableExtensions;
-using Dangl.AspNetCore.FileHandling.Azure;
 using Dangl.Data.Shared;
 using Dangl.OpenCDE.Data.Dto.Documents;
 using Dangl.OpenCDE.Data.Repository;
@@ -105,10 +104,6 @@ namespace Dangl.OpenCDE.Core.Controllers
                 var file = documentDownloadResult.Value.FileResultContainer;
                 return File(file.Stream, file.MimeType, file.FileName);
             }
-            else if (documentDownloadResult.Value.SasDownloadLink != null)
-            {
-                return Redirect(documentDownloadResult.Value.SasDownloadLink.DownloadLink);
-            }
             else
             {
                 _logger.LogError("Encountered invalid repository response when trying to download a document");
@@ -116,8 +111,6 @@ namespace Dangl.OpenCDE.Core.Controllers
                     + Environment.NewLine
                     + $"Correlation Id: {HttpContext.TraceIdentifier}"));
             }
-
-            throw new NotImplementedException();
         }
 
         [HttpPost("")]

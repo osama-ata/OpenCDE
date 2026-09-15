@@ -1,9 +1,7 @@
 ﻿using AutoMapper;
 using AutoMapper.QueryableExtensions;
-using Dangl.AspNetCore.FileHandling;
-using Dangl.AspNetCore.FileHandling.Azure;
 using Dangl.Data.Shared;
-using Dangl.Identity.Client.Mvc.Services;
+using Dangl.OpenCDE.Data.Services;
 using Dangl.OpenCDE.Data.Dto.Documents;
 using Dangl.OpenCDE.Data.Dto.OpenCdeDocumentSelection;
 using Dangl.OpenCDE.Data.Models;
@@ -20,22 +18,19 @@ namespace Dangl.OpenCDE.Data.Repository
     public class OpenCdeDocumentSelectionRepository : IOpenCdeDocumentSelectionRepository
     {
         private readonly CdeDbContext _context;
-        private readonly IUserInfoService _userInfoService;
+        private readonly ICurrentUserService _currentUserService;
         private readonly IMapper _mapper;
-        private readonly IFileManager _fileManager;
         private readonly IDocumentsRepository _documentsRepository;
         public const long FILE_UPLOAD_MAX_SIZE_IN_BYTES = 1_000_000_000; // Just setting to 1 GB for the demo
 
         public OpenCdeDocumentSelectionRepository(CdeDbContext context,
-            IUserInfoService userInfoService,
+            ICurrentUserService currentUserService,
             IMapper mapper,
-            IFileManager fileManager,
             IDocumentsRepository documentsRepository)
         {
             _context = context;
-            _userInfoService = userInfoService;
+            _currentUserService = currentUserService;
             _mapper = mapper;
-            _fileManager = fileManager;
             _documentsRepository = documentsRepository;
         }
 
@@ -80,7 +75,7 @@ namespace Dangl.OpenCDE.Data.Repository
                 return RepositoryResult<(Guid sessionId, int validForSeconds)>.Fail("The client callback url can not be empty.");
             }
 
-            if (!await _userInfoService.UserIsAuthenticatedAsync())
+            if (!await _currentUserService.UserIsAuthenticatedAsync())
             {
                 return RepositoryResult<(Guid sessionId, int validForSeconds)>.Fail("There is no user context present in the current request.");
             }
@@ -90,7 +85,7 @@ namespace Dangl.OpenCDE.Data.Repository
 
             var session = new OpenCdeDocumentDownloadSession
             {
-                UserId = await _userInfoService.GetCurrentUserIdAsync(),
+                UserId = await _currentUserService.GetCurrentUserIdAsync(),
                 ValidUntilUtc = DateTimeOffset.UtcNow.AddSeconds(sessionValidityInSeconds),
                 ClientCallbackUrl = clientCallbackUrl,
                 AuthenticationInformationJson = JsonConvert.SerializeObject(new TokenStorageDto
@@ -117,7 +112,7 @@ namespace Dangl.OpenCDE.Data.Repository
                 return RepositoryResult<(Guid sessionId, int validForSeconds)>.Fail("The client callback url can not be empty.");
             }
 
-            if (!await _userInfoService.UserIsAuthenticatedAsync())
+            if (!await _currentUserService.UserIsAuthenticatedAsync())
             {
                 return RepositoryResult<(Guid sessionId, int validForSeconds)>.Fail("There is no user context present in the current request.");
             }
@@ -142,7 +137,7 @@ namespace Dangl.OpenCDE.Data.Repository
 
             var session = new OpenCdeDocumentUploadSession
             {
-                UserId = await _userInfoService.GetCurrentUserIdAsync(),
+                UserId = await _currentUserService.GetCurrentUserIdAsync(),
                 ValidUntilUtc = DateTimeOffset.UtcNow.AddSeconds(sessionValidityInSeconds),
                 ClientCallbackUrl = clientCallbackUrl,
                 AuthenticationInformationJson = JsonConvert.SerializeObject(new TokenStorageDto
@@ -168,7 +163,7 @@ namespace Dangl.OpenCDE.Data.Repository
         public async Task<RepositoryResult<DocumentSelectionFinalizationDto>> FinalizeOpenCdeDocumentDownloadAsync(Guid documentSessionId,
             Guid documentId)
         {
-            var currentUserId = await _userInfoService
+            var currentUserId = await _currentUserService
                 .GetCurrentUserIdAsync();
 
             await using var transaction = await _context.Database.BeginTransactionAsync();
@@ -211,7 +206,7 @@ namespace Dangl.OpenCDE.Data.Repository
 
         public async Task<RepositoryResult<DocumentDto>> GetDocumentForSelectionAsync(Guid selectionId)
         {
-            var userId = await _userInfoService.GetCurrentUserIdAsync();
+            var userId = await _currentUserService.GetCurrentUserIdAsync();
             var document = await _context
                 .OpenCdeDocumentSelections
                 .Where(s => s.Id == selectionId && s.UserId == userId)
@@ -230,13 +225,6 @@ namespace Dangl.OpenCDE.Data.Repository
         public async Task<RepositoryResult<DocumentsToUpload>> GetUploadInstructionsAsync(Guid documentSessionId,
             UploadFileDetails uploadFileDetails)
         {
-            var azureBlobManager = _fileManager as AzureBlobFileManager;
-            if (azureBlobManager == null)
-            {
-                return RepositoryResult<DocumentsToUpload>.Fail("There is no Azure Blob connection specified, " +
-                    "the server is using a type of storage which does not have an implementation for the upload flow.");
-            }
-
             var dbUploadSession = await _context
                 .OpenCdeDocumentUploadSessions
                 .Include(s => s.PendingFiles)

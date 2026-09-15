@@ -1,12 +1,9 @@
-﻿using Dangl.OpenCDE.Core.Configuration;
+using Dangl.OpenCDE.Core.Configuration;
 using Dangl.OpenCDE.Shared.Models.Foundations;
-using IdentityModel.Client;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Generic;
 using System.Net;
-using System.Net.Http;
-using System.Threading.Tasks;
 
 namespace Dangl.OpenCDE.Core.Controllers.Foundations
 {
@@ -16,35 +13,33 @@ namespace Dangl.OpenCDE.Core.Controllers.Foundations
     public class AuthenticationController : ControllerBase
     {
         private readonly OpenCdeSettings _settings;
-        private readonly IHttpClientFactory _httpClientFactory;
 
-        public AuthenticationController(OpenCdeSettings settings,
-            IHttpClientFactory httpClientFactory)
+        public AuthenticationController(OpenCdeSettings settings)
         {
             _settings = settings;
-            _httpClientFactory = httpClientFactory;
         }
 
         [HttpGet("")]
         [ProducesResponseType(typeof(AuthGet), (int)HttpStatusCode.OK)]
-        public async Task<IActionResult> GetAuthenticationMetadataAsync()
+        public IActionResult GetAuthenticationMetadataAsync()
         {
-            using var httpClient = _httpClientFactory.CreateClient();
-            var danglIdentityBaseUrl = _settings.DanglIdentitySettings.BaseUri;
-            var discoveryDocument = await httpClient.GetDiscoveryDocumentAsync(danglIdentityBaseUrl);
-
+            // Tokens come from Supabase Auth (see app/auth.py in BIM-Guard's own
+            // backend for the matching verification side) rather than a Dangl Identity
+            // OIDC redirect this server itself brokers, so these are static endpoints
+            // instead of a fetched discovery document.
+            var supabaseAuthBaseUrl = _settings.Supabase.Url.TrimEnd('/') + "/auth/v1";
             var authenticationMetadata = new AuthGet
             {
-                OAuth2AuthUrl = discoveryDocument.AuthorizeEndpoint,
-                OAuth2TokenUrl = discoveryDocument.TokenEndpoint,
+                OAuth2AuthUrl = $"{supabaseAuthBaseUrl}/authorize",
+                OAuth2TokenUrl = $"{supabaseAuthBaseUrl}/token",
                 OAuth2DynamicClientRegistrationUrl = null,
                 HttpBasicSupported = false,
                 SupportedOAuth2Flows = new List<string>
                 {
                     "authorization_code_grant",
-                    "implicit_grant"
+                    "password_grant"
                 },
-                OAuth2RequiredScopes = _settings.DanglIdentitySettings.RequiredScope
+                OAuth2RequiredScopes = "authenticated"
             };
 
             return Ok(authenticationMetadata);

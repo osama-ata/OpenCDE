@@ -1,12 +1,11 @@
 ﻿using AutoMapper;
 using AutoMapper.QueryableExtensions;
-using Dangl.AspNetCore.FileHandling.Azure;
 using Dangl.Data.Shared;
 using Dangl.Data.Shared.QueryUtilities;
-using Dangl.Identity.Client.Mvc.Services;
 using Dangl.OpenCDE.Data.Dto.Documents;
 using Dangl.OpenCDE.Data.IO;
 using Dangl.OpenCDE.Data.Models;
+using Dangl.OpenCDE.Data.Services;
 using Dangl.OpenCDE.Shared.Models.Controllers.Documents;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -22,17 +21,20 @@ namespace Dangl.OpenCDE.Data.Repository
         private readonly CdeDbContext _context;
         private readonly IMapper _mapper;
         private readonly ICdeAppFileHandler _cdeAppFileHandler;
-        private readonly IUserInfoService _userInfoService;
+        private readonly ICurrentUserService _currentUserService;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
         public DocumentsRepository(CdeDbContext context,
             IMapper mapper,
             ICdeAppFileHandler cdeAppFileHandler,
-            IUserInfoService userInfoService)
+            ICurrentUserService currentUserService,
+            IHttpContextAccessor httpContextAccessor)
         {
             _context = context;
             _mapper = mapper;
             _cdeAppFileHandler = cdeAppFileHandler;
-            _userInfoService = userInfoService;
+            _currentUserService = currentUserService;
+            _httpContextAccessor = httpContextAccessor;
         }
 
         public Task<bool> CheckIfDocumentWithoutContentExistsForProject(Guid projectId, Guid documentId)
@@ -93,15 +95,6 @@ namespace Dangl.OpenCDE.Data.Repository
             if (document.FileId == null)
             {
                 return RepositoryResult<DocumentFileResultDto>.Fail("There is no content available for this document.");
-            }
-
-            var sasDownloadLinkResult = await _cdeAppFileHandler.TryGetFileSasDownloadLinkAsync(document.FileId.Value);
-            if (sasDownloadLinkResult.IsSuccess)
-            {
-                return RepositoryResult<DocumentFileResultDto>.Success(new DocumentFileResultDto
-                {
-                    SasDownloadLink = sasDownloadLinkResult.Value
-                });
             }
 
             var fileResult = await _cdeAppFileHandler.GetFileByIdAsync(document.FileId.Value);
@@ -173,10 +166,8 @@ namespace Dangl.OpenCDE.Data.Repository
                 return RepositoryResult<DocumentContentSasUploadResultGet>.Fail("The content type is required.");
             }
 
-            var userId = await _userInfoService.GetCurrentUserIdAsync();
+            var userId = await _currentUserService.GetCurrentUserIdAsync();
             var dbMimeType = await _cdeAppFileHandler.GetDbMimeTypeAsync(mimeType);
-
-            await using var transaction = await _context.Database.BeginTransactionAsync();
 
             var dbFile = new CdeAppFile
             {
@@ -193,30 +184,28 @@ namespace Dangl.OpenCDE.Data.Repository
 
             await _context.SaveChangesAsync();
 
-            var sasUploadLinkResult = await _cdeAppFileHandler.TryGetSasUploadLinkAsync(dbFile.Id);
-            if (!sasUploadLinkResult.IsSuccess)
-            {
-                return RepositoryResult<DocumentContentSasUploadResultGet>.Fail(sasUploadLinkResult.ErrorMessage);
-            }
-
-            await transaction.CommitAsync();
-
+            var validUntil = DateTimeOffset.UtcNow.AddMinutes(5);
             var uploadLinkData = new DocumentContentSasUploadResultGet
             {
-                SasUploadLink = sasUploadLinkResult.Value,
-                CustomHeaders = new List<DocumentContentSasUploadResultHeaderGet>
+                SasUploadLink = new DocumentUploadLink
                 {
-                    new DocumentContentSasUploadResultHeaderGet
-                    {
-                        Name = "x-ms-blob-type",
-                        Value = "BlockBlob"
-                    }
-                }
+                    UploadLink = BuildLocalUploadUrl(dbFile.Id),
+                    ValidUntil = validUntil
+                },
+                CustomHeaders = new List<DocumentContentSasUploadResultHeaderGet>()
             };
 
-            uploadLinkData.SasUploadLink.UploadLink += "&x-ms-blob-type=BlockBlob";
-
             return RepositoryResult<DocumentContentSasUploadResultGet>.Success(uploadLinkData);
+        }
+
+        /// <summary>
+        /// Storage is local disk, so there is no cloud SAS link to hand out -- the client
+        /// instead PUTs bytes straight to this server's own upload endpoint.
+        /// </summary>
+        private string BuildLocalUploadUrl(Guid fileId)
+        {
+            var request = _httpContextAccessor.HttpContext.Request;
+            return $"{request.Scheme}://{request.Host}/api/local-file-storage/{fileId}";
         }
 
         public async Task<RepositoryResult> DeleteDocumentAsync(Guid projectId, Guid documentId)

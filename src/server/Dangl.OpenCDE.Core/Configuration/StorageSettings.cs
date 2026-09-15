@@ -1,20 +1,20 @@
-﻿using Dangl.OpenCDE.Shared.Configuration;
+using Dangl.OpenCDE.Shared.Configuration;
 
 namespace Dangl.OpenCDE.Core.Configuration
 {
     public class StorageSettings
     {
-        public bool UseCustomFileManager { get; set; }
-
-        public string AzureBlobFileManagerConnectionString { get; set; }
-
-        public string AzureBlobStorageLogConnectionString { get; set; }
+        /// <summary>
+        /// Directory on local disk where uploaded documents are stored, via
+        /// <see cref="Dangl.AspNetCore.FileHandling.DiskFileManager"/>.
+        /// </summary>
+        public string LocalDiskBasePath { get; set; }
 
         public void Validate()
         {
-            if (!UseCustomFileManager && string.IsNullOrWhiteSpace(AzureBlobFileManagerConnectionString))
+            if (string.IsNullOrWhiteSpace(LocalDiskBasePath))
             {
-                throw new InvalidConfigurationException($"The {nameof(AzureBlobFileManagerConnectionString)} must be set when {nameof(UseCustomFileManager)} is set to false.");
+                throw new InvalidConfigurationException($"{nameof(LocalDiskBasePath)} missing.");
             }
         }
     }

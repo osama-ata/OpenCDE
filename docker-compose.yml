@@ -1,0 +1,19 @@
+services:
+  opencde:
+    build:
+      context: .
+      dockerfile: src/server/Dangl.OpenCDE/Dockerfile
+    ports:
+      - "8081:80"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      AppBaseUrl: "http://localhost:8081"
+      # BIM-Guard's Supabase project -- bearer tokens are verified against its JWKS.
+      Supabase__Url: "https://pmisdhiigakpjfuyxgfb.supabase.co"
+      ConnectionStrings__Sqlite: "Data Source=/data/opencde.db"
+      StorageSettings__LocalDiskBasePath: "/data/files"
+    volumes:
+      - opencde-data:/data
+
+volumes:
+  opencde-data:

@@ -1,4 +1,4 @@
-﻿using Dangl.AspNetCore.FileHandling.Azure;
+using Dangl.AspNetCore.FileHandling;
 using Dangl.Data.Shared;
 using Dangl.OpenCDE.Data.Models;
 using System;
@@ -22,9 +22,13 @@ namespace Dangl.OpenCDE.Data.IO
 
         Task<RepositoryResult<FileResultContainer>> GetFileByIdAsync(Guid fileId);
 
-        Task<RepositoryResult<SasDownloadLink>> TryGetFileSasDownloadLinkAsync(Guid fileId);
-
-        Task<RepositoryResult<SasUploadLink>> TryGetSasUploadLinkAsync(Guid fileId);
+        /// <summary>
+        /// Writes the content stream for a file record that was already created via
+        /// <see cref="Repository.IDocumentsRepository.PrepareDocumentUploadAsync"/>, and
+        /// marks it as available in storage. Used by the local upload endpoint that the
+        /// openCDE upload session flow directs clients to PUT their bytes to.
+        /// </summary>
+        Task<RepositoryResult> WriteExistingFileContentAsync(Guid fileId, Stream fileStream);
 
         Task<RepositoryResult> DeleteFileAsync(Guid fileId);
 

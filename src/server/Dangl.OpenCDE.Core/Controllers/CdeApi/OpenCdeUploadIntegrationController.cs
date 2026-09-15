@@ -1,14 +1,11 @@
 ﻿using Dangl.Data.Shared;
-using Dangl.Identity.Client.Mvc.Services;
 using Dangl.OpenCDE.Core.Extensions;
 using Dangl.OpenCDE.Data.Dto.Documents;
-using Dangl.OpenCDE.Data.Models;
 using Dangl.OpenCDE.Data.Repository;
 using Dangl.OpenCDE.Shared.Models.Controllers.OpenCdeIntegration;
 using Dangl.OpenCDE.Shared.OpenCdeSwaggerGenerated.Models;
 using Dangl.OpenCDE.Shared.Utilities;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
@@ -22,23 +19,14 @@ namespace Dangl.OpenCDE.Core.Controllers.CdeApi
     [Route("api/open-cde-integration/upload")]
     public class OpenCdeUploadIntegrationController : CdeAppControllerBase
     {
-        private readonly SignInManager<CdeUser> _signInManager;
-        private readonly UserManager<CdeUser> _userManager;
         private readonly IOpenCdeDocumentSelectionRepository _openCdeDocumentSelectionService;
         private readonly IDocumentsRepository _documentsRepository;
-        private readonly IUserInfoService _userInfoService;
 
-        public OpenCdeUploadIntegrationController(SignInManager<CdeUser> signInManager,
-            UserManager<CdeUser> userManager,
-            IOpenCdeDocumentSelectionRepository openCdeDocumentSelectionService,
-            IDocumentsRepository documentsRepository,
-            IUserInfoService userInfoService)
+        public OpenCdeUploadIntegrationController(IOpenCdeDocumentSelectionRepository openCdeDocumentSelectionService,
+            IDocumentsRepository documentsRepository)
         {
-            _signInManager = signInManager;
-            _userManager = userManager;
             _openCdeDocumentSelectionService = openCdeDocumentSelectionService;
             _documentsRepository = documentsRepository;
-            _userInfoService = userInfoService;
         }
 
         [AllowAnonymous]

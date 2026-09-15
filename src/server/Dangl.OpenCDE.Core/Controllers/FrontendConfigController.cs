@@ -81,12 +81,17 @@ window.danglOpenCdeFrontendConfig = "
         {
             return new FrontendConfigGet
             {
-                DanglIdentityClientId = _settings.DanglIdentitySettings.ClientId,
-                DanglIdentityUrl = _settings.DanglIdentitySettings.BaseUri,
-                DanglIconsBaseUrl = _settings.DanglIconsBaseUrl,
+                // The standalone "log into the CDE UI directly" screen these previously
+                // fed (AuthenticationService.initiateOpenIdImplicitLogin) pointed at
+                // Dangl-IT's own hosted identity server and is out of scope for this
+                // Supabase-authenticated deployment -- left blank rather than wired to
+                // a provider that can't issue a token this server would accept.
+                DanglIdentityClientId = string.Empty,
+                DanglIdentityUrl = string.Empty,
+                DanglIconsBaseUrl = string.Empty,
                 ApplicationInsightsInstrumentationKey = _settings.ApplicationInsightsInstrumentationKey,
                 Environment = _environment.EnvironmentName,
-                RequiredScope = _settings.DanglIdentitySettings.RequiredScope
+                RequiredScope = "authenticated"
             };
         }
     }

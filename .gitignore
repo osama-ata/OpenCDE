@@ -358,3 +358,6 @@ src/server/Dangl.OpenCDE/wwwroot/dist/
 src/server/Dangl.OpenCDE/wwwroot/assets/
 
 src/client/Dangl.OpenCDE.Client/wwwroot/dist/
+
+# Local SQLite DB + disk-backed file storage (dev/Docker runtime data)
+src/server/Dangl.OpenCDE/data/

@@ -1,5 +1,6 @@
 ﻿using Dangl.OpenCDE.Data.IO;
 using Dangl.OpenCDE.Data.Repository;
+using Dangl.OpenCDE.Data.Services;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Dangl.OpenCDE.Data.Configuration
@@ -15,6 +16,10 @@ namespace Dangl.OpenCDE.Data.Configuration
 
             // File Service
             services.AddTransient<ICdeAppFileHandler, CdeAppFileHandler>();
+
+            // Identity of the caller, resolved from the verified Supabase JWT
+            services.AddHttpContextAccessor();
+            services.AddTransient<ICurrentUserService, CurrentUserService>();
 
             return services;
         }

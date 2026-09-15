@@ -1,8 +1,7 @@
 ﻿using Dangl.AspNetCore.FileHandling;
-using Dangl.AspNetCore.FileHandling.Azure;
 using Dangl.Data.Shared;
-using Dangl.Identity.Client.Mvc.Services;
 using Dangl.OpenCDE.Data.Models;
+using Dangl.OpenCDE.Data.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System;
@@ -18,17 +17,17 @@ namespace Dangl.OpenCDE.Data.IO
         private readonly CdeDbContext _context;
         private readonly IFileManager _fileManager;
         private readonly ILogger _logger;
-        private readonly IUserInfoService _userInfoService;
+        private readonly ICurrentUserService _currentUserService;
 
         public CdeAppFileHandler(CdeDbContext context,
             IFileManager fileManager,
             ILoggerFactory loggerFactory,
-            IUserInfoService userInfoService)
+            ICurrentUserService currentUserService)
         {
             _context = context ?? throw new ArgumentNullException(nameof(context));
             _fileManager = fileManager ?? throw new ArgumentNullException(nameof(fileManager));
             _logger = loggerFactory?.CreateLogger<CdeAppFileHandler>() ?? throw new ArgumentNullException(nameof(loggerFactory));
-            _userInfoService = userInfoService ?? throw new ArgumentNullException(nameof(userInfoService));
+            _currentUserService = currentUserService ?? throw new ArgumentNullException(nameof(currentUserService));
         }
 
         public async Task<RepositoryResult<FileResultContainer>> GetFileByIdAsync(Guid fileId)
@@ -63,9 +62,9 @@ namespace Dangl.OpenCDE.Data.IO
             var dbMimeType = await GetDbMimeTypeAsync(mimeType);
 
             Guid? userId = null;
-            if (await _userInfoService.UserIsAuthenticatedAsync())
+            if (await _currentUserService.UserIsAuthenticatedAsync())
             {
-                userId = await _userInfoService.GetCurrentUserIdAsync();
+                userId = await _currentUserService.GetCurrentUserIdAsync();
             }
 
             var dbFile = new CdeAppFile
@@ -138,59 +137,31 @@ namespace Dangl.OpenCDE.Data.IO
             return deletionResult;
         }
 
-        public async Task<RepositoryResult<SasDownloadLink>> TryGetFileSasDownloadLinkAsync(Guid fileId)
+        public async Task<RepositoryResult> WriteExistingFileContentAsync(Guid fileId, Stream fileStream)
         {
-            if (!(_fileManager is AzureBlobFileManager azureBlobFileManager))
-            {
-                return RepositoryResult<SasDownloadLink>.Fail("SAS links can only be generated for Azure Blob Storage");
-            }
-
             var dbFile = await _context.Files
-                .Include(f => f.MimeType)
                 .FirstOrDefaultAsync(f => f.Id == fileId);
 
             if (dbFile == null)
             {
-                return RepositoryResult<SasDownloadLink>.Fail("There is no file with the given id");
-            }
-
-            var sasDownloadLinkResult = await azureBlobFileManager
-                .GetSasDownloadLinkAsync(fileId,
-                    dbFile.ContainerName,
-                    dbFile.FileName,
-                    friendlyFileName: dbFile.FileName);
-
-            return sasDownloadLinkResult;
-        }
-
-        public async Task<RepositoryResult<SasUploadLink>> TryGetSasUploadLinkAsync(Guid fileId)
-        {
-            if (!(_fileManager is AzureBlobFileManager azureBlobFileManager))
-            {
-                return RepositoryResult<SasUploadLink>.Fail("SAS links can only be generated for Azure Blob Storage");
-            }
-
-            var dbFile = await _context.Files
-                .Include(f => f.MimeType)
-                .FirstOrDefaultAsync(f => f.Id == fileId);
-
-            if (dbFile == null)
-            {
-                return RepositoryResult<SasUploadLink>.Fail("There is no file with the given id");
+                return RepositoryResult.Fail("There is no file with the given id");
             }
 
             if (dbFile.FileAvailableInStorage)
             {
-                return RepositoryResult<SasUploadLink>.Fail("The file has already been uploaded.");
+                return RepositoryResult.Fail("The file has already been uploaded.");
             }
 
-            var sasUploadLinkResult = await azureBlobFileManager
-                .GetSasUploadLinkAsync(fileId,
-                dbFile.ContainerName,
-                dbFile.FileName,
-                validForMinutes: 5);
+            var fileSaveResult = await _fileManager.SaveFileAsync(dbFile.Id, dbFile.ContainerName, dbFile.FileName, fileStream);
+            if (!fileSaveResult.IsSuccess)
+            {
+                return RepositoryResult.Fail(fileSaveResult.ErrorMessage);
+            }
 
-            return sasUploadLinkResult;
+            dbFile.FileAvailableInStorage = true;
+            await _context.SaveChangesAsync();
+
+            return RepositoryResult.Success();
         }
 
         public async Task<bool> CheckIfFileExistsInStorageAsync(Guid fileId)

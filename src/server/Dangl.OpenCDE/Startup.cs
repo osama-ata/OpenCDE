@@ -1,14 +1,11 @@
-using Dangl.AspNetCore.FileHandling.Azure;
+using Dangl.AspNetCore.FileHandling;
 using Dangl.OpenCDE.Core.Configuration;
 using Dangl.OpenCDE.Data;
-using Dapper.Logging;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using System;
 
 namespace Dangl.OpenCDE
 {
@@ -32,7 +29,7 @@ namespace Dangl.OpenCDE
                 openCdeSettings.StorageSettings = new StorageSettings();
             }
 
-            var sqlServerConnectionString = Configuration.GetConnectionString("SqlServer");
+            var sqliteConnectionString = Configuration.GetConnectionString("Sqlite");
             openCdeSettings.Validate();
             services.AddOpenCdeServices(openCdeSettings);
 
@@ -42,29 +39,14 @@ namespace Dangl.OpenCDE
             }
 
             services.AddDbContext<CdeDbContext>(sqlBuilder =>
-                sqlBuilder.UseSqlServer(sqlServerConnectionString, options => options.MigrationsAssembly(typeof(Startup).Assembly.GetName().Name)));
+                sqlBuilder.UseSqlite(sqliteConnectionString, options => options.MigrationsAssembly(typeof(Startup).Assembly.GetName().Name)));
 
-            if (!openCdeSettings.StorageSettings.UseCustomFileManager)
-            {
-                if (!string.IsNullOrWhiteSpace(openCdeSettings.StorageSettings.AzureBlobFileManagerConnectionString))
-                {
-                    services.AddAzureBlobFileManager(openCdeSettings.StorageSettings.AzureBlobFileManagerConnectionString);
-                    services.AddTransient<Data.IO.AzureBlobStorageInitializer>(_ => new Data.IO.AzureBlobStorageInitializer(openCdeSettings.StorageSettings.AzureBlobFileManagerConnectionString));
-                }
-                else
-                {
-                    throw new Exception("Failed to instantiate correct storage from given options, neither Azure nor a custom file manager was specified.");
-                }
-            }
-
-            services.AddDbConnectionFactory(_ => new SqlConnection(sqlServerConnectionString));
-            services.AddTransient<IDapperSqlConnectionProvider, DapperSqlConnectionProvider>();
+            services.AddDiskFileManager(openCdeSettings.StorageSettings.LocalDiskBasePath);
         }
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
-            var openCdeSettings = Configuration.Get<OpenCdeSettings>();
-            app.ConfigureOpenCdeApp(env, openCdeSettings.DanglIdentitySettings);
+            app.ConfigureOpenCdeApp(env);
         }
     }
 }

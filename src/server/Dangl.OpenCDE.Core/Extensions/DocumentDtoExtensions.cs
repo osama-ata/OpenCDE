@@ -1,5 +1,4 @@
-﻿using Azure.Core;
-using Dangl.OpenCDE.Core.Controllers;
+﻿using Dangl.OpenCDE.Core.Controllers;
 using Dangl.OpenCDE.Core.Controllers.CdeApi;
 using Dangl.OpenCDE.Data.Dto.Documents;
 using Dangl.OpenCDE.Shared.OpenCdeSwaggerGenerated.Models;

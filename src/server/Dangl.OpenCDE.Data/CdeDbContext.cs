@@ -1,17 +1,17 @@
 ﻿using Dangl.OpenCDE.Data.Models;
-using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Linq;
 
 namespace Dangl.OpenCDE.Data
 {
-    public class CdeDbContext : IdentityDbContext<CdeUser, CdeRole, Guid>
+    public class CdeDbContext : DbContext
     {
         public CdeDbContext(DbContextOptions<CdeDbContext> options) : base(options)
         {
         }
 
+        public DbSet<CdeUser> Users { get; set; }
         public DbSet<Document> Documents { get; set; }
         public DbSet<CdeAppFile> Files { get; set; }
         public DbSet<CdeAppFileMimeType> FileMimeTypes { get; set; }
@@ -28,24 +28,9 @@ namespace Dangl.OpenCDE.Data
             CdeAppFileMimeType.OnModelCreating(builder);
             Project.OnModelCreating(builder);
 
-            foreach (var property in builder.Model.GetEntityTypes()
-                .SelectMany(entity => entity.GetProperties())
-                .Where(property => property.ClrType == typeof(decimal)
-                    || property.ClrType == typeof(decimal?)))
-            {
-                property.SetColumnType("decimal(28,6)");
-            }
-
-            foreach (var property in builder.Model.GetEntityTypes()
-                .SelectMany(entity => entity.GetProperties())
-                .Where(property => property.ClrType == typeof(Guid)
-                    && property.Name == "Id"))
-            {
-                if (string.IsNullOrWhiteSpace(property.GetDefaultValueSql()))
-                {
-                    property.SetDefaultValueSql("newsequentialid()");
-                }
-            }
+            // Guid primary keys fall back to EF Core's client-side GuidValueGenerator
+            // by convention now that there's no database-side default (SQL Server's
+            // newsequentialid() has no SQLite equivalent).
 
             base.OnModelCreating(builder);
         }

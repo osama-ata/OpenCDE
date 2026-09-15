@@ -1,20 +1,17 @@
-﻿using AutoMapper;
+using AutoMapper;
 using Dangl.Data.Shared.AspNetCore;
 using Dangl.Data.Shared.AspNetCore.Validation;
 using Dangl.Data.Shared.Json;
-using Dangl.Identity.Client.Mvc;
-using Dangl.Identity.Client.Mvc.Configuration;
 using Dangl.OpenCDE.Core.Filters;
 using Dangl.OpenCDE.Core.Mapping;
-using Dangl.OpenCDE.Data;
 using Dangl.OpenCDE.Data.Configuration;
 using Dangl.OpenCDE.Data.Mapping;
-using Dangl.OpenCDE.Data.Models;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.HttpOverrides;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.IdentityModel.Tokens;
 using System;
 
 namespace Dangl.OpenCDE.Core.Configuration
@@ -27,41 +24,41 @@ namespace Dangl.OpenCDE.Core.Configuration
             openCdeSettings.Validate();
             services.AddTransient(_ => openCdeSettings);
 
-            var danglIdentityServerConfig = new DanglIdentityServerConfiguration()
-                .SetAllowInsecureJwtIssuers(openCdeSettings.DanglIdentitySettings.AllowInsecureJwtIssuers)
-                .SetClientId(openCdeSettings.DanglIdentitySettings.ClientId)
-                .SetBaseUri(openCdeSettings.DanglIdentitySettings.BaseUri)
-                .SetRequiredScope(openCdeSettings.DanglIdentitySettings.RequiredScope)
-                .SetUseMemoryCacheUserInfoUpdater(openCdeSettings.DanglIdentitySettings.UseDefaultInMemoryUserUpdaterCache)
-                .SetMvcSetupAction(mvcOptions =>
+            var jwksProvider = new SupabaseJwksProvider(openCdeSettings.Supabase.JwksUrl);
+            services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+                .AddJwtBearer(options =>
+                {
+                    // Keep raw claim names ("sub", "exp", "email") instead of ASP.NET's
+                    // default ClaimTypes remapping -- controllers read them directly,
+                    // the same shape BIM-Guard's own backend sees them in (app/auth.py).
+                    options.MapInboundClaims = false;
+                    options.TokenValidationParameters = new TokenValidationParameters
+                    {
+                        ValidateIssuer = true,
+                        ValidIssuer = openCdeSettings.Supabase.Issuer,
+                        ValidateAudience = true,
+                        ValidAudience = "authenticated",
+                        ValidateLifetime = true,
+                        IssuerSigningKeyResolver = (token, securityToken, kid, validationParameters) =>
+                            jwksProvider.GetSigningKeys(kid)
+                    };
+                });
+            services.AddAuthorization();
+
+            services.AddControllers(mvcOptions =>
                 {
                     mvcOptions.Filters.Add(typeof(ModelStateValidationFilter));
                     mvcOptions.Filters.Add(typeof(RequiredFormFileValidationFilter));
                     mvcOptions.Filters.Add(typeof(ApiErrorLoggingActionFilter));
                     mvcOptions.AddEmptyFormFileValidator();
                 })
-                .SetMvcBuilderConfig(mvcBuilder =>
+                // To ensure it's using it's own assembly in addition to the startup one
+                .AddApplicationPart(typeof(ServiceConfigurationExtensions).Assembly)
+                .AddNewtonsoftJson(jsonOptions =>
                 {
-                    mvcBuilder
-                      // To ensure it's using it's own assembly in addition to the startup one
-                      .AddApplicationPart(typeof(ServiceConfigurationExtensions).Assembly)
-                      .AddNewtonsoftJson(jsonOptions =>
-                      {
-                          jsonOptions.SerializerSettings.DateTimeZoneHandling = Newtonsoft.Json.DateTimeZoneHandling.Utc;
-                          jsonOptions.SerializerSettings.ConfigureDefaultJsonSerializerSettings(true);
-                      });
-
-                    mvcBuilder.Services.AddControllers();
-                })
-                .SetHttpMessageHandlerFactory(openCdeSettings.DanglIdentitySettings.CustomBackchannelHttpMessageHandlerFactory)
-                .SetUseDanglIdentityJwtAuthentication(true);
-
-            if (!string.IsNullOrWhiteSpace(openCdeSettings.DanglIdentitySettings.ClientSecret))
-            {
-                danglIdentityServerConfig = danglIdentityServerConfig.SetClientSecret(openCdeSettings.DanglIdentitySettings.ClientSecret);
-            }
-
-            services.AddControllersWithDanglIdentity<CdeDbContext, CdeUser, CdeRole>(danglIdentityServerConfig);
+                    jsonOptions.SerializerSettings.DateTimeZoneHandling = Newtonsoft.Json.DateTimeZoneHandling.Utc;
+                    jsonOptions.SerializerSettings.ConfigureDefaultJsonSerializerSettings(true);
+                });
 
             services.AddOpenCdeDataServices();
 

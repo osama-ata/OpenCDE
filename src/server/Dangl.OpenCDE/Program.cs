@@ -1,5 +1,3 @@
-using Dangl.AspNetCore.FileHandling;
-using Dangl.AspNetCore.FileHandling.Azure;
 using Dangl.OpenCDE.Core.Configuration;
 using Dangl.OpenCDE.Data;
 using Microsoft.AspNetCore.Hosting;
@@ -28,13 +26,6 @@ namespace Dangl.OpenCDE
                 using (var scope = webHost.Services.CreateScope())
                 {
                     await InitializeDatabaseAsync(scope);
-                    if (scope.ServiceProvider.GetRequiredService<IFileManager>() is AzureBlobFileManager azureBlobFileManager)
-                    {
-                        var azureInitializer = scope.ServiceProvider.GetRequiredService<Data.IO.AzureBlobStorageInitializer>();
-
-                        await azureInitializer.EnsureAzureBlobContainersPresentAsync();
-                        await azureInitializer.EnsureAzureBlobStorageHasCorsEnabledAsync();
-                    }
                 }
 
                 await webHost.RunAsync().ConfigureAwait(false);
@@ -102,25 +93,6 @@ namespace Dangl.OpenCDE
                 .Enrich.WithMachineName()
                 .WriteTo.Debug(outputTemplate: logOutputTemplate)
                 .WriteTo.Console(outputTemplate: logOutputTemplate);
-
-            var environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
-            var appSettings = new ConfigurationBuilder()
-                .AddJsonFile("appsettings.json", optional: false)
-                .AddJsonFile($"appsettings.{environment}.json", optional: true)
-                .AddEnvironmentVariables()
-                .Build()
-                .Get<OpenCdeSettings>();
-
-            if (!string.IsNullOrWhiteSpace(appSettings?.StorageSettings?.AzureBlobStorageLogConnectionString))
-            {
-                loggerConfiguration.WriteTo.AzureBlobStorage(appSettings.StorageSettings.AzureBlobStorageLogConnectionString,
-                    storageFileName: $"{{yyyy}}/{{MM}}/{{dd}}/{{HH}}/log-{environment}.txt",
-                    outputTemplate: logOutputTemplate,
-                    storageContainerName: "opencde",
-                    writeInBatches: true,
-                    period: TimeSpan.FromSeconds(15),
-                    batchPostingLimit: 10);
-            }
 
             Log.Logger = loggerConfiguration.CreateLogger();
         }

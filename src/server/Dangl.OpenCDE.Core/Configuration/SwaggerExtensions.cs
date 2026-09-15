@@ -28,21 +28,16 @@ namespace Dangl.OpenCDE.Core.Configuration
                 c.Version = VersionsService.Version;
                 c.Title = $"API {VersionsService.Version}";
 
-                var requiredScope = openCdeSettings.DanglIdentitySettings.RequiredScope;
-                var danglIdentityBaseUrl = openCdeSettings.DanglIdentitySettings.BaseUri;
-                c.DocumentProcessors.Add(new SecurityDefinitionAppender("Dangl.Identity",
-                    new[] { requiredScope },
+                c.DocumentProcessors.Add(new SecurityDefinitionAppender("Bearer",
                     new OpenApiSecurityScheme
                     {
-                        Type = OpenApiSecuritySchemeType.OAuth2,
-                        Description = "OpenCDE API Access",
-                        Flow = OpenApiOAuth2Flow.Implicit,
-                        AuthorizationUrl = danglIdentityBaseUrl.TrimEnd('/') + "/connect/authorize",
-                        TokenUrl = danglIdentityBaseUrl.TrimEnd('/') + "/connect/token",
-                        Scopes = new Dictionary<string, string> { { requiredScope, "Access to the OpenCDE API" } }
+                        Type = OpenApiSecuritySchemeType.Http,
+                        Scheme = "bearer",
+                        BearerFormat = "JWT",
+                        Description = "Paste a Supabase-issued access token (e.g. from BIM-Guard's own session)."
                     }));
 
-                c.OperationProcessors.Add(new OperationSecurityScopeProcessor("Dangl.Identity"));
+                c.OperationProcessors.Add(new OperationSecurityScopeProcessor("Bearer"));
                 c.OperationProcessors.Add(new LightQueryOperationsProcessor());
 
                 c.PostProcess = (x) =>
@@ -93,21 +88,16 @@ namespace Dangl.OpenCDE.Core.Configuration
 
                 c.DocumentName = "OpenCDE";
 
-                var requiredScope = openCdeSettings.DanglIdentitySettings.RequiredScope;
-                var danglIdentityBaseUrl = openCdeSettings.DanglIdentitySettings.BaseUri;
-                c.DocumentProcessors.Add(new SecurityDefinitionAppender("Dangl.Identity",
-                    new[] { requiredScope },
+                c.DocumentProcessors.Add(new SecurityDefinitionAppender("Bearer",
                     new OpenApiSecurityScheme
                     {
-                        Type = OpenApiSecuritySchemeType.OAuth2,
-                        Description = "OpenCDE API Access",
-                        Flow = OpenApiOAuth2Flow.Implicit,
-                        AuthorizationUrl = danglIdentityBaseUrl.TrimEnd('/') + "/connect/authorize",
-                        TokenUrl = danglIdentityBaseUrl.TrimEnd('/') + "/connect/token",
-                        Scopes = new Dictionary<string, string> { { requiredScope, "Access to the OpenCDE API" } }
+                        Type = OpenApiSecuritySchemeType.Http,
+                        Scheme = "bearer",
+                        BearerFormat = "JWT",
+                        Description = "Paste a Supabase-issued access token (e.g. from BIM-Guard's own session)."
                     }));
 
-                c.OperationProcessors.Add(new OperationSecurityScopeProcessor("Dangl.Identity"));
+                c.OperationProcessors.Add(new OperationSecurityScopeProcessor("Bearer"));
                 // We're filtering out all the non-bSI API types here
                 c.OperationProcessors.Insert(0, new OpenCdeApisOnlyOperationProcessor());
 
@@ -152,19 +142,9 @@ namespace Dangl.OpenCDE.Core.Configuration
         /// Adds the OpenCDE Swagger endpoints
         /// </summary>
         /// <param name="app"></param>
-        /// <param name="danglIdentitySettings"></param>
         /// <returns></returns>
-        public static IApplicationBuilder UseOpenCdeSwaggerUi(this IApplicationBuilder app, DanglIdentitySettings danglIdentitySettings)
+        public static IApplicationBuilder UseOpenCdeSwaggerUi(this IApplicationBuilder app)
         {
-            void ConfigureDanglIdentity(SwaggerUiSettings settings)
-            {
-                settings.OAuth2Client = new OAuth2ClientSettings
-                {
-                    ClientId = danglIdentitySettings.ClientId,
-                    AppName = "Dangl.OpenCDE"
-                };
-            }
-
             app.UseOpenApi(c =>
             {
                 c.Path = "/swagger/swagger.json";
@@ -178,8 +158,6 @@ namespace Dangl.OpenCDE.Core.Configuration
 
             app.UseSwaggerUi(settings =>
             {
-                ConfigureDanglIdentity(settings);
-
                 settings.DocumentPath = "/swagger/swagger.json";
                 settings.Path = "/swagger";
             });
@@ -210,8 +188,6 @@ namespace Dangl.OpenCDE.Core.Configuration
 
             app.UseSwaggerUi(settings =>
             {
-                ConfigureDanglIdentity(settings);
-
                 settings.DocumentPath = "/swagger/opencde.json";
                 settings.Path = "/swagger-opencde";
             });
