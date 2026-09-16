@@ -1,9 +1,61 @@
-<h1>Login</h1>
+<h1>{{ mode === "login" ? "Login" : "Register" }}</h1>
 
-@if (processingLoginResponse) {
-<p>Processing login response...</p>
-} @if (error) {
-<p>An error occured.</p>
-@if (errorMessage) {
-<code>{{ errorMessage }}</code>
-} }
+@if (!configured) {
+<p>
+  This OpenCDE server has no Supabase project configured, so sign-in is
+  disabled. If you're integrating via the Documents API directly (e.g. from
+  BIM-Guard), no browser login is needed -- forward your own access token as a
+  bearer token instead.
+</p>
+} @else {
+<mat-card class="card">
+  <form [formGroup]="loginForm" (ngSubmit)="submit()">
+    <mat-card-content>
+      <div class="p10">
+        <mat-form-field appearance="fill">
+          <mat-label>Email</mat-label>
+          <input matInput type="email" formControlName="email" required />
+          @if (loginForm.get('email')?.hasError('required')) {
+          <mat-error>Email is required</mat-error>
+          } @if (loginForm.get('email')?.hasError('email')) {
+          <mat-error>Enter a valid email</mat-error>
+          }
+        </mat-form-field>
+      </div>
+      <div class="p10">
+        <mat-form-field appearance="fill">
+          <mat-label>Password</mat-label>
+          <input matInput type="password" formControlName="password" required />
+          @if (loginForm.get('password')?.hasError('required')) {
+          <mat-error>Password is required</mat-error>
+          } @if (loginForm.get('password')?.hasError('minlength')) {
+          <mat-error>Password must be at least 6 characters</mat-error>
+          }
+        </mat-form-field>
+      </div>
+      @if (errorMessage) {
+      <p class="error-message">{{ errorMessage }}</p>
+      } @if (infoMessage) {
+      <p class="info-message">{{ infoMessage }}</p>
+      }
+    </mat-card-content>
+    <mat-card-actions>
+      <button
+        type="submit"
+        mat-flat-button
+        color="primary"
+        [disabled]="!loginForm.valid || isSubmitting"
+      >
+        {{ mode === "login" ? "Login" : "Register" }}
+      </button>
+      <button type="button" mat-button (click)="toggleMode()">
+        {{
+          mode === "login"
+            ? "Need an account? Register"
+            : "Already have an account? Login"
+        }}
+      </button>
+    </mat-card-actions>
+  </form>
+</mat-card>
+}

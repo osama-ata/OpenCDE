@@ -3,13 +3,12 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "outDir": "./out-tsc/app",
-    "types": []
+    // @supabase/supabase-js's storage-js sub-dependency declares optional
+    // Node.js-only upload sources (Buffer, NodeJS.ReadableStream) in its
+    // public .d.ts; TS still type-checks those even though nothing in the
+    // browser bundle exercises that code path, so "node" must stay resolvable.
+    "types": ["node"]
   },
-  "files": [
-    "src/main.ts",
-    "src/polyfills.ts"
-  ],
-  "include": [
-    "src/**/*.d.ts"
-  ]
+  "files": ["src/main.ts", "src/polyfills.ts"],
+  "include": ["src/**/*.d.ts"]
 }

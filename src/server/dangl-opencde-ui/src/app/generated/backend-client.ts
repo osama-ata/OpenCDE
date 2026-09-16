@@ -4274,6 +4274,8 @@ export interface FrontendConfigGet {
   environment: string;
   danglIdentityClientId: string;
   requiredScope: string;
+  supabaseUrl?: string | undefined;
+  supabaseAnonKey?: string | undefined;
 }
 
 export interface PaginationResultOfProjectGet {

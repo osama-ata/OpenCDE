@@ -15,6 +15,15 @@ namespace Dangl.OpenCDE.Core.Configuration
         /// </summary>
         public string Url { get; set; }
 
+        /// <summary>
+        /// The Supabase project's publishable/anon key. Safe to expose to the browser
+        /// (Supabase's own client-side auth model expects this): it only lets the
+        /// client call Supabase Auth's own sign-in/sign-up endpoints directly, it does
+        /// not grant access to this server's API, which still verifies the resulting
+        /// JWT itself against <see cref="JwksUrl"/> on every request.
+        /// </summary>
+        public string AnonKey { get; set; }
+
         public string JwksUrl => $"{Url.TrimEnd('/')}/auth/v1/.well-known/jwks.json";
 
         public string Issuer => $"{Url.TrimEnd('/')}/auth/v1";

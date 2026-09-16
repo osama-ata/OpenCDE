@@ -1,7 +1,7 @@
 import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 
 import { AuthenticationMessenger } from '@dangl/angular-dangl-identity-client';
-import { AuthenticationService } from '../../services/authentication.service';
+import { Router } from '@angular/router';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import {
@@ -29,7 +29,7 @@ import { UserInfo } from 'node_modules/@dangl/angular-dangl-identity-client/mode
 })
 export class WelcomeComponent implements OnInit, OnDestroy {
   private authenticationMessenger = inject(AuthenticationMessenger);
-  private authenticationService = inject(AuthenticationService);
+  private router = inject(Router);
 
   userInfo: UserInfo | null = null;
   private unsubscribe: Subject<void> = new Subject<void>();
@@ -41,7 +41,7 @@ export class WelcomeComponent implements OnInit, OnDestroy {
   }
 
   login(): void {
-    this.authenticationService.initiateOpenIdImplicitLogin();
+    this.router.navigateByUrl('/login');
   }
 
   ngOnDestroy(): void {

@@ -2,10 +2,10 @@ import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 
 import { AppConfigService } from '../../services/app-config.service';
 import { AuthenticationMessenger } from '@dangl/angular-dangl-identity-client';
-import { AuthenticationService } from '../../services/authentication.service';
 import { HeaderComponent } from '@dangl/angular-material-shared';
 import { MatButton } from '@angular/material/button';
 import { NgIf } from '@angular/common';
+import { Router } from '@angular/router';
 import { SidebarService } from '../../services/sidebar.service';
 import { Subject } from 'rxjs';
 import { UserInfo } from 'node_modules/@dangl/angular-dangl-identity-client/models/user-info';
@@ -21,7 +21,7 @@ import { version } from '../../version';
 })
 export class SiteHeaderComponent implements OnInit, OnDestroy {
   private sidebarService = inject(SidebarService);
-  private authenticationService = inject(AuthenticationService);
+  private router = inject(Router);
   private authenticationMessenger = inject(AuthenticationMessenger);
 
   preReleaseVersion: string = '';
@@ -61,6 +61,6 @@ export class SiteHeaderComponent implements OnInit, OnDestroy {
   }
 
   login(): void {
-    this.authenticationService.initiateOpenIdImplicitLogin();
+    this.router.navigateByUrl('/login');
   }
 }

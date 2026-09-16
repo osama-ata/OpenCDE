@@ -83,15 +83,21 @@ window.danglOpenCdeFrontendConfig = "
             {
                 // The standalone "log into the CDE UI directly" screen these previously
                 // fed (AuthenticationService.initiateOpenIdImplicitLogin) pointed at
-                // Dangl-IT's own hosted identity server and is out of scope for this
-                // Supabase-authenticated deployment -- left blank rather than wired to
-                // a provider that can't issue a token this server would accept.
+                // Dangl-IT's own hosted identity server, which no longer issues tokens
+                // this server accepts -- left blank permanently. The UI now signs
+                // users in directly against Supabase Auth via SupabaseUrl/SupabaseAnonKey
+                // below instead.
                 DanglIdentityClientId = string.Empty,
                 DanglIdentityUrl = string.Empty,
                 DanglIconsBaseUrl = string.Empty,
                 ApplicationInsightsInstrumentationKey = _settings.ApplicationInsightsInstrumentationKey,
                 Environment = _environment.EnvironmentName,
-                RequiredScope = "authenticated"
+                RequiredScope = "authenticated",
+                // Empty when Supabase:AnonKey isn't configured, in which case the UI
+                // disables its own login form (server-to-server bearer-token callers,
+                // e.g. BIM-Guard's sync client, are unaffected either way).
+                SupabaseUrl = _settings.Supabase?.Url ?? string.Empty,
+                SupabaseAnonKey = _settings.Supabase?.AnonKey ?? string.Empty
             };
         }
     }

@@ -1,0 +1,16 @@
+.card {
+  margin: 30px auto;
+  max-width: 400px;
+}
+
+.mat-form-field {
+  width: 100%;
+}
+
+.error-message {
+  color: var(--mat-sys-error, #b3261e);
+}
+
+.info-message {
+  color: var(--mat-sys-primary, #006494);
+}
